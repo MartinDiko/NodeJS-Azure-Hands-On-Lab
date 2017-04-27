@@ -12,169 +12,38 @@ var express = require('express')
   , everyauth = require('everyauth')
   , Recaptcha = require('recaptcha').Recaptcha;
 
+var Connection = require('tedious').Connection;
+var Request = require('tedious').Request;
 
+// Create connection to database
+var config = {
+  userName: 'mdiko@valorem.com@valoremdev', // update me
+  password: 'M1cr0$0ft90!', // update me
+  server: 'valoremdev.database.windows.net', // update me
+  options: {
+      database: 'vlmAzureSQLDb', //update me
+      encrypt: true
+  }
+}
+
+var connection = new Connection(config);
+
+// Attempt to connect and execute queries if connection goes through
+connection.on('connect', function(err) {
+    if (err) {
+        console.log(err)
+    }
+    else{
+        queryDatabase()
+    }
+});
 /**
 * CONFIGURATION
 * -------------------------------------------------------------------------------------------------
-* load configuration settings from ENV, then settings.json.  Contains keys for OAuth logins. See 
-* settings.example.json.  
+* load configuration settings from ENV, then settings.json.  Contains keys for OAuth logins. See
+* settings.example.json.
 **/
 nconf.env().file({ file: 'settings.json' });
-
-
-
-/**
-* EVERYAUTH AUTHENTICATION
-* -------------------------------------------------------------------------------------------------
-* allows users to log in and register using OAuth services
-**/
-
-everyauth.debug = true;
-
-// Configure local password auth
-var usersById = {},
-    nextUserId = 0,
-    usersByFacebookId = {},
-    usersByTwitId = {},
-    usersByLogin = {
-        'user@example.com': addUser({ email: 'user@example.com', password: 'azure' })
-    };
-
-everyauth.
-    everymodule.
-    findUserById(function (id, callback) {
-        callback(null, usersById[id]);
-    });
-
-
-/**
-* FACEBOOK AUTHENTICATION
-* -------------------------------------------------------------------------------------------------
-* uncomment this section if you want to enable facebook authentication.  To use this, you will need
-* to get a facebook application Id and Secret, and add those to settings.json.  See:
-* http://developers.facebook.com/
-**/
-
-//everyauth.
-//    facebook.
-//    appId(nconf.get('facebook:applicationId')).
-//    appSecret(nconf.get('facebook:applicationSecret')).
-//    findOrCreateUser(
-//	function (session, accessToken, accessTokenExtra, fbUserMetadata) {
-//	    return usersByFacebookId[fbUserMetadata.claimedIdentifier] ||
-//		(usersByFacebookId[fbUserMetadata.claimedIdentifier] =
-//		 addUser('facebook', fbUserMetadata));
-//	}).
-//    redirectPath('/');
-
-
-/**
-* TWITTER AUTHENTICATION
-* -------------------------------------------------------------------------------------------------
-* uncomment this section if you want to enable twitter authentication.  To use this, you will need
-* to get a twitter key and secret, and add those to settings.json.  See:
-* https://dev.twitter.com/
-**/
-
-//everyauth
-//  .twitter
-//    .consumerKey(nconf.get('twitter:consumerKey'))
-//    .consumerSecret(nconf.get('twitter:consumerSecret'))
-//    .findOrCreateUser(function (sess, accessToken, accessSecret, twitUser) {
-//        return usersByTwitId[twitUser.id] || (usersByTwitId[twitUser.id] = addUser('twitter', twitUser));
-//    })
-//    .redirectPath('/');
-
-
-
-/**
-* USERNAME & PASSWORD AUTHENTICATION
-* -------------------------------------------------------------------------------------------------
-* this section provides basic in-memory username and password authentication
-**/
-
-everyauth
-  .password
-    .loginWith('email')
-    .getLoginPath('/login')
-    .postLoginPath('/login')
-    .loginView('account/login')
-    .loginLocals(function (req, res, done) {
-        setTimeout(function () {
-            done(null, {
-                title: 'login.  '
-            });
-        }, 200);
-    })
-    .authenticate(function (login, password) {
-        var errors = [];
-        if (!login) errors.push('Missing login');
-        if (!password) errors.push('Missing password');
-        if (errors.length) return errors;
-        var user = usersByLogin[login];
-        if (!user) return ['Login failed'];
-        if (user.password !== password) return ['Login failed'];
-        return user;
-    })
-    .getRegisterPath('/register')
-    .postRegisterPath('/register')
-    .registerView('account/register')
-    .registerLocals(function (req, res, done) {
-        setTimeout(function () {
-            done(null, {
-                title: 'Register.  ',
-                recaptcha_form: (new Recaptcha(nconf.get('recaptcha:publicKey'), nconf.get('recaptcha:privateKey'))).toHTML()
-            });
-        }, 200);
-    })
-    .extractExtraRegistrationParams(function (req) {
-        return {
-            confirmPassword: req.body.confirmPassword,
-            data: {
-                remoteip: req.connection.remoteAddress,
-                challenge: req.body.recaptcha_challenge_field,
-                response: req.body.recaptcha_response_field
-            }
-        }
-    })
-    .validateRegistration(function (newUserAttrs, errors) {
-        var login = newUserAttrs.login;
-        var confirmPassword = newUserAttrs.confirmPassword;
-        if (!confirmPassword) errors.push('Missing password confirmation')
-        if (newUserAttrs.password != confirmPassword) errors.push('Passwords must match');
-        if (usersByLogin[login]) errors.push('Login already taken');
-
-        // validate the recaptcha 
-        var recaptcha = new Recaptcha(nconf.get('recaptcha:publicKey'), nconf.get('recaptcha:privateKey'), newUserAttrs.data);
-        recaptcha.verify(function (success, error_code) {
-            if (!success) {
-                errors.push('Invalid recaptcha - please try again');
-            }
-        });
-        return errors;
-    })
-    .registerUser(function (newUserAttrs) {
-        var login = newUserAttrs[this.loginKey()];
-        return usersByLogin[login] = addUser(newUserAttrs);
-    })
-    .loginSuccessRedirect('/')
-    .registerSuccessRedirect('/');
-
-// add a user to the in memory store of users.  If you were looking to use a persistent store, this
-// would be the place to start
-function addUser(source, sourceUser) {
-    var user;
-    if (arguments.length === 1) {
-        user = sourceUser = source;
-        user.id = ++nextUserId;
-        return usersById[nextUserId] = user;
-    } else { // non-password-based
-        user = usersById[++nextUserId] = { id: nextUserId };
-        user[source] = sourceUser;
-    }
-    return user;
-}
-
 
 
 var app = express();
@@ -182,13 +51,6 @@ app.configure(function () {
     app.set('port', process.env.PORT || 3000);
     app.set('views', __dirname + '/views');
     app.set('view engine', 'jade');
-    app.use(express.favicon());
-    app.use(express.logger('dev'));
-    app.use(express.bodyParser());
-    app.use(express.methodOverride());
-    app.use(express.cookieParser('azure zomg'));
-    app.use(express.session());
-    app.use(everyauth.middleware(app));
     app.use(app.router);
     app.use(require('less-middleware')({ src: __dirname + '/public' }));
     app.use(express.static(path.join(__dirname, 'public')));
@@ -198,19 +60,47 @@ app.configure('development', function () {
     app.use(express.errorHandler());
 });
 
+
+
+function queryDatabase(){
+    var taskSet = [];
+    console.log('Reading rows from the Table...');
+    // Read all rows from table
+    request = new Request(
+        "SELECT * FROM vlmSecondaryTable",
+        function(err, rowCount, rows) {
+            console.log(rowCount + ' row(s) returned');
+        }
+    );
+
+    request.on('row', function(columns) {
+      columns.forEach(function(column) {
+        var tempCol = column.metadata.colName;
+        var tempVal = column.value;
+         console.log("%s\t%s", tempCol, tempVal);;
+          app.get('/', function (req, res) {
+              res.render('index', { title: 'Valorem. ', tempVal })
+          });
+      });
+    });
+
+
+    connection.execSql(request);
+
+
+}
+
 /**
 * ROUTING
 * -------------------------------------------------------------------------------------------------
 * include a route file for each major area of functionality in the site
 **/
-require('./routes/home')(app);
-require('./routes/account')(app);
-
+//require('./routes/home')(app);
 
 var server = http.createServer(app);
 
 /**
-* CHAT / SOCKET.IO 
+* CHAT / SOCKET.IO
 * -------------------------------------------------------------------------------------------------
 * this shows a basic example of using socket.io to orchestrate chat
 **/
