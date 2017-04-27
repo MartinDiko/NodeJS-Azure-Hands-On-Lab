@@ -1,1 +1,10 @@
-#Node JS Starte site template [![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
+npm install
+npm install tedious
+npm starts
+
+http://localhost:3000
+
+
+
+Production site
+http://vlmwebapp.azurewebsites.net

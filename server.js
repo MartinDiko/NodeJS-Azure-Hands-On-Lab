@@ -18,7 +18,7 @@ var Request = require('tedious').Request;
 // Create connection to database
 var config = {
   userName: 'mdiko@valorem.com@valoremdev', // update me
-  password: 'M1cr0$0ft90!', // update me
+  password: 'L3tmE1n?!', // update me
   server: 'valoremdev.database.windows.net', // update me
   options: {
       database: 'vlmAzureSQLDb', //update me
