@@ -17,11 +17,11 @@ var Request = require('tedious').Request;
 
 // Create connection to database
 var config = {
-  userName: 'mdiko@valorem.com@valoremdev', // update me
-  password: 'L3tmE1n?!', // update me
-  server: 'valoremdev.database.windows.net', // update me
+  userName: 'KBergman', // update me
+  password: 'Sw!mmingP00l', // update me
+  server: 'holsql.database.windows.net', // update me
   options: {
-      database: 'vlmAzureSQLDb', //update me
+      database: 'HOLAW', //update me
       encrypt: true
   }
 }
@@ -66,28 +66,27 @@ function queryDatabase(){
     var taskSet = [];
     console.log('Reading rows from the Table...');
     // Read all rows from table
-    request = new Request(
-        "SELECT * FROM vlmSecondaryTable",
+    request = new Request("select TOP 1 FirstName, LastName from SalesLT.Customer",
         function(err, rowCount, rows) {
             console.log(rowCount + ' row(s) returned');
         }
     );
-
+    var results = [];
     request.on('row', function(columns) {
-      columns.forEach(function(column) {
+      //console.log(columns[0].value);
+      var fn = columns[0].value;
+      var ln = columns[1].value;
+      app.get('/', function (req, res) {
+          res.render('index', { title: 'Valorem. ', fn, ln })
+      });
+  /*    columns.forEach(function(column) {
         var tempCol = column.metadata.colName;
         var tempVal = column.value;
-         console.log("%s\t%s", tempCol, tempVal);;
-          app.get('/', function (req, res) {
-              res.render('index', { title: 'Valorem. ', tempVal })
-          });
+        // console.log("%s", tempVal);
       });
+  */
     });
-
-
     connection.execSql(request);
-
-
 }
 
 /**
