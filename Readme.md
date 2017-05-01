@@ -1,10 +1,6 @@
 npm install
 npm install tedious
-npm starts
+npm start
 
 http://localhost:3000
 
-
-
-Production site
-http://vlmwebapp.azurewebsites.net

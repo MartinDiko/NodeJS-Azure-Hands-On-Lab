@@ -60,8 +60,6 @@ app.configure('development', function () {
     app.use(express.errorHandler());
 });
 
-
-
 function queryDatabase(){
     var taskSet = [];
     console.log('Reading rows from the Table...');
